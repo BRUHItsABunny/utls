@@ -645,11 +645,12 @@ var (
 	// Chrome w/ New ALPS codepoint
 	HelloChrome_133 = ClientHelloID{helloChrome, "133", nil, nil}
 
-	HelloIOS_Auto = HelloIOS_14
-	HelloIOS_11_1 = ClientHelloID{helloIOS, "111", nil, nil} // legacy "111" means 11.1
-	HelloIOS_12_1 = ClientHelloID{helloIOS, "12.1", nil, nil}
-	HelloIOS_13   = ClientHelloID{helloIOS, "13", nil, nil}
-	HelloIOS_14   = ClientHelloID{helloIOS, "14", nil, nil}
+	HelloIOS_Auto     = HelloIOS_18_CFNet
+	HelloIOS_11_1     = ClientHelloID{helloIOS, "111", nil, nil} // legacy "111" means 11.1
+	HelloIOS_12_1     = ClientHelloID{helloIOS, "12.1", nil, nil}
+	HelloIOS_13       = ClientHelloID{helloIOS, "13", nil, nil}
+	HelloIOS_14       = ClientHelloID{helloIOS, "14", nil, nil}
+	HelloIOS_18_CFNet = ClientHelloID{helloIOS, "18_CFNet", nil, nil} // iOS CFNetwork
 
 	HelloAndroid_11_OkHttp = ClientHelloID{helloAndroid, "11", nil, nil}
 

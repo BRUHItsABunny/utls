@@ -650,6 +650,7 @@ var (
 	HelloIOS_12_1     = ClientHelloID{helloIOS, "12.1", nil, nil}
 	HelloIOS_13       = ClientHelloID{helloIOS, "13", nil, nil}
 	HelloIOS_14       = ClientHelloID{helloIOS, "14", nil, nil}
+	HelloIOS_16_CFNet = ClientHelloID{helloIOS, "16_CFNet", nil, nil} // iOS 16.x -iOS17.x CFNetwork
 	HelloIOS_18_CFNet = ClientHelloID{helloIOS, "18_CFNet", nil, nil} // iOS CFNetwork
 
 	HelloAndroid_11_OkHttp = ClientHelloID{helloAndroid, "11", nil, nil}

@@ -1053,7 +1053,24 @@ func utlsIdToSpec(id ClientHelloID) (ClientHelloSpec, error) {
 				&UtlsGREASEExtension{},
 			}),
 		}, nil
-	case HelloChrome_146_PSK:
+	case HelloChrome_146_PSK, HelloChrome_150_PSK:
+		signatureAlgorithms := []SignatureScheme{
+			ECDSAWithP256AndSHA256,
+			PSSWithSHA256,
+			PKCS1WithSHA256,
+			ECDSAWithP384AndSHA384,
+			PSSWithSHA384,
+			PKCS1WithSHA384,
+			PSSWithSHA512,
+			PKCS1WithSHA512,
+		}
+		if id == HelloChrome_150_PSK {
+			signatureAlgorithms = append([]SignatureScheme{
+				MLDSA44,
+				MLDSA65,
+				MLDSA87,
+			}, signatureAlgorithms...)
+		}
 		return ClientHelloSpec{
 			CipherSuites: []uint16{
 				GREASE_PLACEHOLDER,
@@ -1093,16 +1110,7 @@ func utlsIdToSpec(id ClientHelloID) (ClientHelloSpec, error) {
 					{Group: X25519MLKEM768},
 					{Group: X25519},
 				}},
-				&SignatureAlgorithmsExtension{SupportedSignatureAlgorithms: []SignatureScheme{
-					ECDSAWithP256AndSHA256,
-					PSSWithSHA256,
-					PKCS1WithSHA256,
-					ECDSAWithP384AndSHA384,
-					PSSWithSHA384,
-					PKCS1WithSHA384,
-					PSSWithSHA512,
-					PKCS1WithSHA512,
-				}},
+				&SignatureAlgorithmsExtension{SupportedSignatureAlgorithms: signatureAlgorithms},
 				&SupportedCurvesExtension{Curves: []CurveID{
 					GREASE_PLACEHOLDER,
 					X25519MLKEM768,

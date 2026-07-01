@@ -649,7 +649,8 @@ var (
 	HelloChrome_146     = ClientHelloID{helloChrome, "146", nil, nil}
 	HelloChrome_146_PSK = ClientHelloID{helloChrome, "146_PSK", nil, nil}
 	// Chrome w/ ML-DSA signature algorithms
-	HelloChrome_150 = ClientHelloID{helloChrome, "150", nil, nil}
+	HelloChrome_150     = ClientHelloID{helloChrome, "150", nil, nil}
+	HelloChrome_150_PSK = ClientHelloID{helloChrome, "150_PSK", nil, nil}
 
 	HelloIOS_Auto     = HelloIOS_18_CFNet
 	HelloIOS_11_1     = ClientHelloID{helloIOS, "111", nil, nil} // legacy "111" means 11.1

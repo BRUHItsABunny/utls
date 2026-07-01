@@ -1126,7 +1126,6 @@ func utlsIdToSpec(id ClientHelloID) (ClientHelloSpec, error) {
 				&PSKKeyExchangeModesExtension{Modes: []uint8{
 					PskModeDHE,
 				}},
-				&TrustAnchorsExtension{}, // draft-ietf-tls-trust-anchor-ids, empty list per Chrome behavior
 				&UtlsGREASEExtension{},
 			}),
 		}, nil
@@ -1293,7 +1292,6 @@ func utlsIdToSpec(id ClientHelloID) (ClientHelloSpec, error) {
 					"h2",
 					"http/1.1",
 				}},
-				&TrustAnchorsExtension{}, // draft-ietf-tls-trust-anchor-ids, empty list per Chrome behavior
 				&UtlsGREASEExtension{},
 				&UtlsPreSharedKeyExtension{},
 			}),

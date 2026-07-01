@@ -200,8 +200,8 @@ func TestHelloChrome150PrependsMLDSASignatureAlgorithms(t *testing.T) {
 	if !hasNewALPS {
 		t.Fatal("expected Chrome 150 to keep the new ALPS extension codepoint")
 	}
-	if !hasTrustAnchors {
-		t.Fatal("expected Chrome 150 to keep the trust anchors extension")
+	if hasTrustAnchors {
+		t.Fatal("expected Chrome 150 not to advertise the trust anchors extension")
 	}
 }
 
@@ -250,8 +250,8 @@ func TestHelloChrome150PSKPrependsMLDSASignatureAlgorithms(t *testing.T) {
 	if !hasNewALPS {
 		t.Fatal("expected Chrome 150 PSK to keep the new ALPS extension codepoint")
 	}
-	if !hasTrustAnchors {
-		t.Fatal("expected Chrome 150 PSK to keep the trust anchors extension")
+	if hasTrustAnchors {
+		t.Fatal("expected Chrome 150 PSK not to advertise the trust anchors extension")
 	}
 	if !hasPreSharedKey {
 		t.Fatal("expected Chrome 150 PSK to keep the pre-shared key extension")

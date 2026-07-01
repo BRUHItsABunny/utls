@@ -614,7 +614,7 @@ var (
 	HelloFirefox_120  = ClientHelloID{helloFirefox, "120", nil, nil}
 	HelloFirefox_148  = ClientHelloID{helloFirefox, "148", nil, nil}
 
-	HelloChrome_Auto        = HelloChrome_146
+	HelloChrome_Auto        = HelloChrome_150
 	HelloChrome_58          = ClientHelloID{helloChrome, "58", nil, nil}
 	HelloChrome_62          = ClientHelloID{helloChrome, "62", nil, nil}
 	HelloChrome_70          = ClientHelloID{helloChrome, "70", nil, nil}
@@ -648,6 +648,8 @@ var (
 	HelloChrome_133     = ClientHelloID{helloChrome, "133", nil, nil}
 	HelloChrome_146     = ClientHelloID{helloChrome, "146", nil, nil}
 	HelloChrome_146_PSK = ClientHelloID{helloChrome, "146_PSK", nil, nil}
+	// Chrome w/ ML-DSA signature algorithms
+	HelloChrome_150 = ClientHelloID{helloChrome, "150", nil, nil}
 
 	HelloIOS_Auto     = HelloIOS_18_CFNet
 	HelloIOS_11_1     = ClientHelloID{helloIOS, "111", nil, nil} // legacy "111" means 11.1

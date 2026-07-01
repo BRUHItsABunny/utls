@@ -3,6 +3,7 @@ package tls
 import (
 	"bytes"
 	"net"
+	"slices"
 	"testing"
 )
 
@@ -150,5 +151,56 @@ func TestHybridClassicalKeySharesAreIndependentByDefault(t *testing.T) {
 	}
 	if keys.MlkemEcdhe == keys.Ecdhe {
 		t.Fatal("expected independent keyshares by default: hybrid/classical ECDHE private keys should differ")
+	}
+}
+
+func TestHelloChrome150PrependsMLDSASignatureAlgorithms(t *testing.T) {
+	if HelloChrome_Auto != HelloChrome_150 {
+		t.Fatalf("expected HelloChrome_Auto to track HelloChrome_150, got %s", HelloChrome_Auto.Str())
+	}
+
+	spec, err := UTLSIdToSpec(HelloChrome_150)
+	if err != nil {
+		t.Fatalf("unexpected error creating Chrome 150 spec: %v", err)
+	}
+
+	var sigAlgs []SignatureScheme
+	var hasNewALPS bool
+	var hasTrustAnchors bool
+	for _, ext := range spec.Extensions {
+		switch ext := ext.(type) {
+		case *SignatureAlgorithmsExtension:
+			sigAlgs = ext.SupportedSignatureAlgorithms
+		case *ApplicationSettingsExtensionNew:
+			hasNewALPS = true
+		case *TrustAnchorsExtension:
+			hasTrustAnchors = true
+		}
+	}
+	if len(sigAlgs) < 11 {
+		t.Fatalf("expected Chrome 150 signature algorithms to include ML-DSA prefix, got %v", sigAlgs)
+	}
+
+	expected := []SignatureScheme{
+		MLDSA44,
+		MLDSA65,
+		MLDSA87,
+		ECDSAWithP256AndSHA256,
+		PSSWithSHA256,
+		PKCS1WithSHA256,
+		ECDSAWithP384AndSHA384,
+		PSSWithSHA384,
+		PKCS1WithSHA384,
+		PSSWithSHA512,
+		PKCS1WithSHA512,
+	}
+	if !slices.Equal(sigAlgs, expected) {
+		t.Fatalf("unexpected Chrome 150 signature algorithms:\nwant %v\ngot  %v", expected, sigAlgs)
+	}
+	if !hasNewALPS {
+		t.Fatal("expected Chrome 150 to keep the new ALPS extension codepoint")
+	}
+	if !hasTrustAnchors {
+		t.Fatal("expected Chrome 150 to keep the trust anchors extension")
 	}
 }

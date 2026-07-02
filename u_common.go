@@ -613,6 +613,10 @@ var (
 	HelloFirefox_120  = ClientHelloID{helloFirefox, "120", nil, nil}
 	HelloFirefox_148  = ClientHelloID{helloFirefox, "148", nil, nil}
 
+	// Track the newest Chrome profile whose advertised TLS capabilities are
+	// supported by the current handshake implementation. Chrome 150 advertises
+	// ML-DSA signatures, so it should become Auto after rebasing onto Go TLS
+	// support for ML-DSA certificate signatures.
 	HelloChrome_Auto        = HelloChrome_133
 	HelloChrome_58          = ClientHelloID{helloChrome, "58", nil, nil}
 	HelloChrome_62          = ClientHelloID{helloChrome, "62", nil, nil}
@@ -645,6 +649,10 @@ var (
 	HelloChrome_131 = ClientHelloID{helloChrome, "131", nil, nil}
 	// Chrome w/ New ALPS codepoint
 	HelloChrome_133 = ClientHelloID{helloChrome, "133", nil, nil}
+	// Chrome w/ ML-DSA signature algorithms. Explicit-only until upstream Go
+	// TLS support for ML-DSA certificate signatures is available here.
+	HelloChrome_150     = ClientHelloID{helloChrome, "150", nil, nil}
+	HelloChrome_150_PSK = ClientHelloID{helloChrome, "150_PSK", nil, nil}
 
 	HelloIOS_Auto = HelloIOS_14
 	HelloIOS_11_1 = ClientHelloID{helloIOS, "111", nil, nil} // legacy "111" means 11.1

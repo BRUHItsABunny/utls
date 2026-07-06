@@ -206,12 +206,13 @@ const (
 	signatureRSAPSS
 	signatureECDSA
 	signatureEd25519
+	signatureMLDSA
 	signatureEdDilithium3
 )
 
 // directSigning is a standard Hash value that signals that no pre-hashing
 // should be performed, and that the input should be signed directly. It is the
-// hash function associated with the Ed25519 signature scheme.
+// hash function associated with the Ed25519 and ML-DSA signature schemes.
 var directSigning crypto.Hash = 0
 
 // helloRetryRequestRandom is set as the Random value of a ServerHello
@@ -919,6 +920,10 @@ type Config struct {
 	// autoSessionTicketKeys is like sessionTicketKeys but is owned by the
 	// auto-rotation logic. See Config.ticketKeys.
 	autoSessionTicketKeys []ticketKey
+
+	// testingOnlyForceSignatureAlgorithms freezes signature_algorithms output
+	// for recorded wire tests whose testdata predates newer default algorithms.
+	testingOnlyForceSignatureAlgorithms []SignatureScheme
 }
 
 // EncryptedClientHelloKey holds a private key that is associated
@@ -1023,6 +1028,7 @@ func (c *Config) Clone() *Config {
 		EncryptedClientHelloKeys:            c.EncryptedClientHelloKeys,
 		sessionTicketKeys:                   c.sessionTicketKeys,
 		autoSessionTicketKeys:               c.autoSessionTicketKeys,
+		testingOnlyForceSignatureAlgorithms: c.testingOnlyForceSignatureAlgorithms,
 
 		PreferSkipResumptionOnNilExtension: c.PreferSkipResumptionOnNilExtension, // [UTLS]
 	}
@@ -1537,7 +1543,7 @@ func (cri *CertificateRequestInfo) SupportsCertificate(c *Certificate) error {
 		// chain.Leaf was nil.
 		if j != 0 || x509Cert == nil {
 			var err error
-			if x509Cert, err = x509.ParseCertificate(cert); err != nil {
+			if x509Cert, err = parseCertificate(cert); err != nil {
 				return fmt.Errorf("failed to parse certificate #%d in the chain: %w", j, err)
 			}
 		}
@@ -1607,7 +1613,8 @@ var writerMutex sync.Mutex
 type Certificate struct {
 	Certificate [][]byte
 	// PrivateKey contains the private key corresponding to the public key in
-	// Leaf. This must implement crypto.Signer with an RSA, ECDSA or Ed25519 PublicKey.
+	// Leaf. This must implement crypto.Signer with an RSA, ECDSA, Ed25519, or
+	// ML-DSA PublicKey.
 	// For a server up to TLS 1.2, it can also implement crypto.Decrypter with
 	// an RSA PublicKey.
 	PrivateKey crypto.PrivateKey
@@ -1632,7 +1639,7 @@ func (c *Certificate) leaf() (*x509.Certificate, error) {
 	if c.Leaf != nil {
 		return c.Leaf, nil
 	}
-	return x509.ParseCertificate(c.Certificate[0])
+	return parseCertificate(c.Certificate[0])
 }
 
 type handshakeMessage interface {
@@ -1744,6 +1751,23 @@ func supportedSignatureAlgorithms() []SignatureScheme {
 	// }
 	// return defaultSupportedSignatureAlgorithmsFIPS
 	// [uTLS] SECTION END
+}
+
+func supportedSignatureAlgorithmsForVersion(maxVersion uint16) []SignatureScheme {
+	sigAlgs := supportedSignatureAlgorithms()
+	if maxVersion >= VersionTLS13 {
+		return sigAlgs
+	}
+	return slices.DeleteFunc(slices.Clone(sigAlgs), isMLDSASignatureScheme)
+}
+
+func isMLDSASignatureScheme(sigAlg SignatureScheme) bool {
+	switch sigAlg {
+	case MLDSA44, MLDSA65, MLDSA87:
+		return true
+	default:
+		return false
+	}
 }
 
 func isSupportedSignatureAlgorithm(sigAlg SignatureScheme, supportedSignatureAlgorithms []SignatureScheme) bool {

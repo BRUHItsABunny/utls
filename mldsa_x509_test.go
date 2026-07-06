@@ -1,3 +1,5 @@
+//go:build !nomldsa
+
 package tls
 
 import (

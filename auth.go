@@ -152,8 +152,8 @@ func legacyTypeAndHashFromPublicKey(pub crypto.PublicKey) (sigType uint8, hash c
 		// complexity, so we can't even test it properly.
 		return 0, 0, fmt.Errorf("tls: Ed25519 public keys are not supported before TLS 1.2")
 	default:
-		if sigType, hash, err := legacyTypeAndHashFromMLDSAPublicKey(pub); err != nil || sigType != 0 || hash != 0 {
-			return sigType, hash, err
+		if isMLDSAPublicKey(pub) {
+			return 0, 0, errors.New("tls: ML-DSA public keys are not supported before TLS 1.3")
 		}
 		return 0, 0, fmt.Errorf("tls: unsupported public key: %T", pub)
 	}

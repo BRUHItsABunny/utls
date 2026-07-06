@@ -647,8 +647,7 @@ var (
 	HelloChrome_131 = ClientHelloID{helloChrome, "131", nil, nil}
 	// Chrome w/ New ALPS codepoint
 	HelloChrome_133 = ClientHelloID{helloChrome, "133", nil, nil}
-	// Chrome w/ ML-DSA signature algorithms. Explicit-only until upstream Go
-	// TLS support for ML-DSA certificate signatures is available here.
+	// Chrome w/ ML-DSA signature algorithms
 	HelloChrome_150     = ClientHelloID{helloChrome, "150", nil, nil}
 	HelloChrome_150_PSK = ClientHelloID{helloChrome, "150_PSK", nil, nil}
 
@@ -675,6 +674,13 @@ var (
 	HelloQQ_Auto = HelloQQ_11_1
 	HelloQQ_11_1 = ClientHelloID{helloQQ, "11.1", nil, nil}
 )
+
+func defaultChromeAutoID() ClientHelloID {
+	if goMLDSASupported() {
+		return HelloChrome_150
+	}
+	return HelloChrome_133
+}
 
 type Weights struct {
 	Extensions_Append_ALPN                             float64

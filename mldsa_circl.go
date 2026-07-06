@@ -1,14 +1,14 @@
-// Copyright 2026 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
+//go:build !nomldsa
 
 package tls
 
 import (
 	"crypto"
+	"crypto/x509"
 	"errors"
 	"fmt"
 
+	circlPki "github.com/cloudflare/circl/pki"
 	circlSign "github.com/cloudflare/circl/sign"
 	"github.com/cloudflare/circl/sign/mldsa/mldsa44"
 	"github.com/cloudflare/circl/sign/mldsa/mldsa65"
@@ -45,11 +45,6 @@ func mldsaSignatureSchemeForPublicKey(pub crypto.PublicKey) (SignatureScheme, bo
 	return 0, false
 }
 
-func isMLDSAPublicKey(pub crypto.PublicKey) bool {
-	_, ok := mldsaSignatureSchemeForPublicKey(pub)
-	return ok
-}
-
 func isMLDSAPrivateKey(priv crypto.PrivateKey) bool {
 	switch priv.(type) {
 	case *mldsa44.PrivateKey, *mldsa65.PrivateKey, *mldsa87.PrivateKey:
@@ -60,21 +55,6 @@ func isMLDSAPrivateKey(priv crypto.PrivateKey) bool {
 		return ok
 	}
 	return false
-}
-
-func publicKeyMatchesMLDSAPrivateKey(pub crypto.PublicKey, priv crypto.PrivateKey) bool {
-	if pub == nil || priv == nil {
-		return false
-	}
-	signer, ok := priv.(crypto.Signer)
-	if !ok {
-		return false
-	}
-	pubEq, ok := pub.(interface{ Equal(crypto.PublicKey) bool })
-	if !ok {
-		return false
-	}
-	return pubEq.Equal(signer.Public())
 }
 
 func verifyMLDSAHandshakeSignature(pubkey crypto.PublicKey, signed, sig []byte) error {
@@ -94,30 +74,38 @@ func verifyMLDSAHandshakeSignature(pubkey crypto.PublicKey, signed, sig []byte) 
 	return nil
 }
 
-func legacyTypeAndHashFromMLDSAPublicKey(pub crypto.PublicKey) (uint8, crypto.Hash, error) {
+// parseCertificate recognizes ML-DSA leaf public keys, but chain signatures
+// still verify through crypto/x509, which has no ML-DSA support: only
+// classically-issued ML-DSA leaf certificates pass verification.
+func parseCertificate(der []byte) (*x509.Certificate, error) {
+	cert, err := x509.ParseCertificate(der)
+	if err != nil {
+		return nil, err
+	}
+	patchMLDSAPublicKey(cert)
+	return cert, nil
+}
+
+func patchMLDSAPublicKey(cert *x509.Certificate) {
+	if cert == nil || cert.PublicKey != nil || len(cert.RawSubjectPublicKeyInfo) == 0 {
+		return
+	}
+	pub, err := circlPki.UnmarshalPKIXPublicKey(cert.RawSubjectPublicKeyInfo)
+	if err != nil {
+		return
+	}
 	if isMLDSAPublicKey(pub) {
-		return 0, 0, errors.New("tls: ML-DSA public keys are not supported before TLS 1.3")
+		cert.PublicKey = pub
 	}
-	return 0, 0, nil
 }
 
-func signatureSchemesForMLDSAPublicKey(version uint16, pub crypto.PublicKey) []SignatureScheme {
-	if version != VersionTLS13 {
-		return nil
+func parseMLDSAPrivateKey(der []byte) (crypto.PrivateKey, error) {
+	priv, err := circlPki.UnmarshalPKIXPrivateKey(der)
+	if err != nil {
+		return nil, err
 	}
-	if sigAlg, ok := mldsaSignatureSchemeForPublicKey(pub); ok {
-		return []SignatureScheme{sigAlg}
+	if !isMLDSAPrivateKey(priv) {
+		return nil, errors.New("tls: parsed CIRCL key is not ML-DSA")
 	}
-	return nil
-}
-
-func unsupportedMLDSACertificateError(pub crypto.PublicKey) error {
-	if isMLDSAPublicKey(pub) {
-		return errors.New("tls: ML-DSA certificates require TLS 1.3")
-	}
-	return nil
-}
-
-func defaultChromeAutoID() ClientHelloID {
-	return ClientHelloID{helloChrome, "150", nil, nil}
+	return priv, nil
 }

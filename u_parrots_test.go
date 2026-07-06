@@ -233,9 +233,13 @@ func TestHelloChrome150PrependsMLDSASignatureAlgorithms(t *testing.T) {
 	}
 }
 
-func TestHelloChromeAutoWaitsForGoMLDSASupport(t *testing.T) {
-	if HelloChrome_Auto != HelloChrome_133 {
-		t.Fatalf("expected HelloChrome_Auto to stay on HelloChrome_133 until upstream Go TLS supports ML-DSA signatures, got %s", HelloChrome_Auto.Str())
+func TestHelloChromeAutoTracksGoMLDSASupport(t *testing.T) {
+	expected := HelloChrome_133
+	if goMLDSASupported() {
+		expected = HelloChrome_150
+	}
+	if HelloChrome_Auto != expected {
+		t.Fatalf("unexpected HelloChrome_Auto: want %s, got %s", expected.Str(), HelloChrome_Auto.Str())
 	}
 }
 

@@ -85,7 +85,6 @@ func TestOpenSSLMLDSAInterop(t *testing.T) {
 		})
 
 		hostAddr := dockerPublishedAddress(t, containerID)
-		time.Sleep(2 * time.Second)
 
 		caPEM, err := os.ReadFile(filepath.Join(workDir, "ca.crt"))
 		if err != nil {
@@ -96,21 +95,17 @@ func TestOpenSSLMLDSAInterop(t *testing.T) {
 			t.Fatal("failed to parse OpenSSL test CA")
 		}
 
-		conn, err := net.Dial("tcp", hostAddr)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer conn.Close()
-
-		client := UClient(conn, &Config{
+		clientConfig := &Config{
 			ServerName: "localhost",
 			RootCAs:    roots,
 			MinVersion: VersionTLS13,
 			MaxVersion: VersionTLS13,
-		}, HelloChrome_150)
-		if err := client.Handshake(); err != nil {
-			t.Fatal(err)
 		}
+		// The container installs OpenSSL before s_server starts listening, and
+		// Docker Desktop's proxy accepts connections before the backend is up,
+		// so retry the full handshake instead of probing the TCP port.
+		client := dialUTLSWithRetry(t, hostAddr, clientConfig, HelloChrome_150)
+		defer client.Close()
 		if got := client.ConnectionState().Version; got != VersionTLS13 {
 			t.Fatalf("version = %#x, want TLS 1.3", got)
 		}
@@ -189,19 +184,27 @@ func dockerPublishedAddress(t *testing.T, containerID string) string {
 	return line
 }
 
-func waitForTCP(t *testing.T, addr string) {
+func dialUTLSWithRetry(t *testing.T, addr string, config *Config, helloID ClientHelloID) *UConn {
 	t.Helper()
 
-	deadline := time.Now().Add(15 * time.Second)
+	deadline := time.Now().Add(30 * time.Second)
 	var lastErr error
 	for time.Now().Before(deadline) {
-		conn, err := net.DialTimeout("tcp", addr, 250*time.Millisecond)
-		if err == nil {
-			conn.Close()
-			return
+		conn, err := net.DialTimeout("tcp", addr, time.Second)
+		if err != nil {
+			lastErr = err
+			time.Sleep(250 * time.Millisecond)
+			continue
 		}
-		lastErr = err
-		time.Sleep(100 * time.Millisecond)
+		client := UClient(conn, config, helloID)
+		if err := client.Handshake(); err != nil {
+			conn.Close()
+			lastErr = err
+			time.Sleep(250 * time.Millisecond)
+			continue
+		}
+		return client
 	}
-	t.Fatalf("timed out waiting for %s: %v", addr, lastErr)
+	t.Fatalf("timed out handshaking with %s: %v", addr, lastErr)
+	return nil
 }

@@ -2,6 +2,11 @@
 
 package tls
 
+// Static fixtures copied from Go upstream's ML-DSA TLS work
+// (certificates_test.go at go.googlesource.com/go commit c74ba7d26551):
+// ML-DSA leaf certificates issued by the classical RSA test roots below,
+// valid at mldsaTestTime.
+
 const testRootCertPEM = `
 -----BEGIN CERTIFICATE-----
 MIIC2zCCAcOgAwIBAgIBATANBgkqhkiG9w0BAQsFADAPMQ0wCwYDVQQDEwRSb290

@@ -3,6 +3,7 @@ package tls
 import (
 	"bytes"
 	"net"
+	"reflect"
 	"slices"
 	"testing"
 )
@@ -154,34 +155,51 @@ func TestHybridClassicalKeySharesAreIndependentByDefault(t *testing.T) {
 	}
 }
 
-func TestHelloChrome150PrependsMLDSASignatureAlgorithms(t *testing.T) {
-	if HelloChrome_Auto != HelloChrome_150 {
-		t.Fatalf("expected HelloChrome_Auto to track HelloChrome_150, got %s", HelloChrome_Auto.Str())
-	}
+func findSignatureAlgorithmsExtension(t *testing.T, exts []TLSExtension) []SignatureScheme {
+	t.Helper()
 
-	spec, err := UTLSIdToSpec(HelloChrome_150)
-	if err != nil {
-		t.Fatalf("unexpected error creating Chrome 150 spec: %v", err)
-	}
-
-	var sigAlgs []SignatureScheme
-	var hasNewALPS bool
-	var hasTrustAnchors bool
-	for _, ext := range spec.Extensions {
-		switch ext := ext.(type) {
-		case *SignatureAlgorithmsExtension:
-			sigAlgs = ext.SupportedSignatureAlgorithms
-		case *ApplicationSettingsExtensionNew:
-			hasNewALPS = true
-		case *TrustAnchorsExtension:
-			hasTrustAnchors = true
+	for _, ext := range exts {
+		if sigExt, ok := ext.(*SignatureAlgorithmsExtension); ok {
+			return sigExt.SupportedSignatureAlgorithms
 		}
 	}
-	if len(sigAlgs) < 11 {
-		t.Fatalf("expected Chrome 150 signature algorithms to include ML-DSA prefix, got %v", sigAlgs)
-	}
 
-	expected := []SignatureScheme{
+	t.Fatal("signature_algorithms extension not found")
+	return nil
+}
+
+func hasApplicationSettingsNewExtension(exts []TLSExtension) bool {
+	for _, ext := range exts {
+		if _, ok := ext.(*ApplicationSettingsExtensionNew); ok {
+			return true
+		}
+	}
+	return false
+}
+
+func hasPreSharedKeyExtension(exts []TLSExtension) bool {
+	for _, ext := range exts {
+		if _, ok := ext.(*UtlsPreSharedKeyExtension); ok {
+			return true
+		}
+	}
+	return false
+}
+
+func hasTrustAnchorsExtension(exts []TLSExtension) bool {
+	for _, ext := range exts {
+		if genericExt, ok := ext.(*GenericExtension); ok && genericExt.Id == 0xca34 {
+			return true
+		}
+		if reflect.TypeOf(ext).String() == "*tls.TrustAnchorsExtension" {
+			return true
+		}
+	}
+	return false
+}
+
+func expectedChrome150SignatureAlgorithms() []SignatureScheme {
+	return []SignatureScheme{
 		MLDSA44,
 		MLDSA65,
 		MLDSA87,
@@ -194,14 +212,34 @@ func TestHelloChrome150PrependsMLDSASignatureAlgorithms(t *testing.T) {
 		PSSWithSHA512,
 		PKCS1WithSHA512,
 	}
+}
+
+func TestHelloChrome150PrependsMLDSASignatureAlgorithms(t *testing.T) {
+	spec, err := UTLSIdToSpec(HelloChrome_150)
+	if err != nil {
+		t.Fatalf("unexpected error creating Chrome 150 spec: %v", err)
+	}
+
+	sigAlgs := findSignatureAlgorithmsExtension(t, spec.Extensions)
+	expected := expectedChrome150SignatureAlgorithms()
 	if !slices.Equal(sigAlgs, expected) {
 		t.Fatalf("unexpected Chrome 150 signature algorithms:\nwant %v\ngot  %v", expected, sigAlgs)
 	}
-	if !hasNewALPS {
+	if !hasApplicationSettingsNewExtension(spec.Extensions) {
 		t.Fatal("expected Chrome 150 to keep the new ALPS extension codepoint")
 	}
-	if hasTrustAnchors {
+	if hasTrustAnchorsExtension(spec.Extensions) {
 		t.Fatal("expected Chrome 150 not to advertise the trust anchors extension")
+	}
+}
+
+func TestHelloChromeAutoTracksGoMLDSASupport(t *testing.T) {
+	expected := HelloChrome_133
+	if goMLDSASupported() {
+		expected = HelloChrome_150
+	}
+	if HelloChrome_Auto != expected {
+		t.Fatalf("unexpected HelloChrome_Auto: want %s, got %s", expected.Str(), HelloChrome_Auto.Str())
 	}
 }
 
@@ -211,49 +249,18 @@ func TestHelloChrome150PSKPrependsMLDSASignatureAlgorithms(t *testing.T) {
 		t.Fatalf("unexpected error creating Chrome 150 PSK spec: %v", err)
 	}
 
-	var sigAlgs []SignatureScheme
-	var hasNewALPS bool
-	var hasTrustAnchors bool
-	var hasPreSharedKey bool
-	for _, ext := range spec.Extensions {
-		switch ext := ext.(type) {
-		case *SignatureAlgorithmsExtension:
-			sigAlgs = ext.SupportedSignatureAlgorithms
-		case *ApplicationSettingsExtensionNew:
-			hasNewALPS = true
-		case *TrustAnchorsExtension:
-			hasTrustAnchors = true
-		case *UtlsPreSharedKeyExtension:
-			hasPreSharedKey = true
-		}
-	}
-	if len(sigAlgs) < 11 {
-		t.Fatalf("expected Chrome 150 PSK signature algorithms to include ML-DSA prefix, got %v", sigAlgs)
-	}
-
-	expected := []SignatureScheme{
-		MLDSA44,
-		MLDSA65,
-		MLDSA87,
-		ECDSAWithP256AndSHA256,
-		PSSWithSHA256,
-		PKCS1WithSHA256,
-		ECDSAWithP384AndSHA384,
-		PSSWithSHA384,
-		PKCS1WithSHA384,
-		PSSWithSHA512,
-		PKCS1WithSHA512,
-	}
+	sigAlgs := findSignatureAlgorithmsExtension(t, spec.Extensions)
+	expected := expectedChrome150SignatureAlgorithms()
 	if !slices.Equal(sigAlgs, expected) {
 		t.Fatalf("unexpected Chrome 150 PSK signature algorithms:\nwant %v\ngot  %v", expected, sigAlgs)
 	}
-	if !hasNewALPS {
+	if !hasApplicationSettingsNewExtension(spec.Extensions) {
 		t.Fatal("expected Chrome 150 PSK to keep the new ALPS extension codepoint")
 	}
-	if hasTrustAnchors {
+	if hasTrustAnchorsExtension(spec.Extensions) {
 		t.Fatal("expected Chrome 150 PSK not to advertise the trust anchors extension")
 	}
-	if !hasPreSharedKey {
+	if !hasPreSharedKeyExtension(spec.Extensions) {
 		t.Fatal("expected Chrome 150 PSK to keep the pre-shared key extension")
 	}
 }

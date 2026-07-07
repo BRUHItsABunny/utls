@@ -614,7 +614,9 @@ var (
 	HelloFirefox_120  = ClientHelloID{helloFirefox, "120", nil, nil}
 	HelloFirefox_148  = ClientHelloID{helloFirefox, "148", nil, nil}
 
-	HelloChrome_Auto        = HelloChrome_150
+	// Track the newest Chrome profile whose advertised TLS capabilities are
+	// supported by the current Go toolchain.
+	HelloChrome_Auto        = defaultChromeAutoID()
 	HelloChrome_58          = ClientHelloID{helloChrome, "58", nil, nil}
 	HelloChrome_62          = ClientHelloID{helloChrome, "62", nil, nil}
 	HelloChrome_70          = ClientHelloID{helloChrome, "70", nil, nil}
@@ -677,6 +679,13 @@ var (
 	HelloQQ_Auto = HelloQQ_11_1
 	HelloQQ_11_1 = ClientHelloID{helloQQ, "11.1", nil, nil}
 )
+
+func defaultChromeAutoID() ClientHelloID {
+	if goMLDSASupported() {
+		return HelloChrome_150
+	}
+	return HelloChrome_133
+}
 
 type Weights struct {
 	Extensions_Append_ALPN                             float64

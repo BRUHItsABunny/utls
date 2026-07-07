@@ -140,6 +140,7 @@ var DictExtTypeValueIndexed = map[uint16]string{
 	17613: "application_settings_new",
 	30031: "channel_id_old",
 	30032: "channel_id",
+	51764: "trust_anchors",
 }
 
 var DictExtTypeNameIndexed = map[string]uint16{
@@ -209,4 +210,5 @@ var DictExtTypeNameIndexed = map[string]uint16{
 	"application_settings_new":  17613,
 	"channel_id_old":            30031,
 	"channel_id":                30032,
+	"trust_anchors":             51764,
 }

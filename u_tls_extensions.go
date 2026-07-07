@@ -79,6 +79,8 @@ func ExtensionFromID(id uint16) TLSExtension {
 		return &FakeChannelIDExtension{}
 	case utlsExtensionECH:
 		return &GREASEEncryptedClientHelloExtension{}
+	case utlsExtensionTrustAnchors:
+		return &TrustAnchorsExtension{}
 	case extensionRenegotiationInfo:
 		return &RenegotiationInfoExtension{}
 	default:
@@ -1946,5 +1948,92 @@ func (e *FakeDelegatedCredentialsExtension) UnmarshalJSON(data []byte) error {
 			return fmt.Errorf("unknown delegated credentials signature scheme: %s", sigScheme)
 		}
 	}
+	return nil
+}
+
+// TrustAnchorsExtension implements the trust_anchors extension
+// as defined in draft-ietf-tls-trust-anchor-ids.
+//
+// Wire format (ClientHello):
+//
+//	opaque TrustAnchorID<1..2^8-1>;
+//	TrustAnchorID TrustAnchorIDList<0..2^16-1>;
+//
+// Each TrustAnchorID contains the contents octets of a relative OID's
+// DER encoding (tag and length omitted), relative to 1.3.6.1.4.1.
+type TrustAnchorsExtension struct {
+	// TrustAnchors is a list of trust anchor IDs. Each entry is
+	// the binary representation of a relative OID.
+	TrustAnchors [][]byte
+}
+
+func (e *TrustAnchorsExtension) writeToUConn(uc *UConn) error {
+	return nil
+}
+
+func (e *TrustAnchorsExtension) trustAnchorsLen() int {
+	n := 0
+	for _, id := range e.TrustAnchors {
+		n += 1 + len(id) // uint8 length prefix + data
+	}
+	return n
+}
+
+func (e *TrustAnchorsExtension) Len() int {
+	return 4 + 2 + e.trustAnchorsLen() // header (4) + list length (2) + entries
+}
+
+func (e *TrustAnchorsExtension) Read(b []byte) (int, error) {
+	if len(b) < e.Len() {
+		return 0, io.ErrShortBuffer
+	}
+
+	listLen := e.trustAnchorsLen()
+
+	b[0] = byte(utlsExtensionTrustAnchors >> 8)
+	b[1] = byte(utlsExtensionTrustAnchors & 0xff)
+	b[2] = byte((2 + listLen) >> 8)
+	b[3] = byte(2 + listLen)
+	b[4] = byte(listLen >> 8)
+	b[5] = byte(listLen)
+
+	i := 6
+	for _, id := range e.TrustAnchors {
+		b[i] = byte(len(id))
+		copy(b[i+1:], id)
+		i += 1 + len(id)
+	}
+	return e.Len(), io.EOF
+}
+
+func (e *TrustAnchorsExtension) Write(b []byte) (int, error) {
+	fullLen := len(b)
+	extData := cryptobyte.String(b)
+
+	var listBytes cryptobyte.String
+	if !extData.ReadUint16LengthPrefixed(&listBytes) {
+		return 0, errors.New("unable to read trust anchors extension data")
+	}
+
+	var trustAnchors [][]byte
+	for !listBytes.Empty() {
+		var id cryptobyte.String
+		if !listBytes.ReadUint8LengthPrefixed(&id) || id.Empty() {
+			return 0, errors.New("unable to read trust anchor ID")
+		}
+		trustAnchors = append(trustAnchors, []byte(id))
+	}
+	e.TrustAnchors = trustAnchors
+	return fullLen, nil
+}
+
+func (e *TrustAnchorsExtension) UnmarshalJSON(data []byte) error {
+	var trustAnchors struct {
+		TrustAnchors [][]byte `json:"trust_anchors"`
+	}
+	if err := json.Unmarshal(data, &trustAnchors); err != nil {
+		return err
+	}
+	e.TrustAnchors = trustAnchors.TrustAnchors
 	return nil
 }
